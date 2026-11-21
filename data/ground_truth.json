@@ -1,0 +1,37 @@
+{
+  "target_month": "2026-10",
+  "drivers": [
+    {
+      "id": "west_volume_shortfall",
+      "type": "volume",
+      "where": {
+        "region": "West"
+      },
+      "description": "West region unit volume ~20% below budget in Oct (7% in Sep), all products."
+    },
+    {
+      "id": "summit_jacket_price_cut",
+      "type": "price",
+      "where": {
+        "product": "Summit Jacket"
+      },
+      "description": "Summit Jacket average price 12% below budget from Sep, with only a 4% volume lift."
+    },
+    {
+      "id": "brightline_one_time_charge",
+      "type": "one_time_expense",
+      "where": {
+        "department": "Marketing",
+        "vendor": "Brightline Events"
+      },
+      "amount": 85000,
+      "description": "Unbudgeted one-time $85K charge from Brightline Events."
+    }
+  ],
+  "decoys": [
+    {
+      "id": "engineering_travel_overrun",
+      "note": "+40% vs budget but only $3.2K. Below materiality; must NOT be reported."
+    }
+  ]
+}

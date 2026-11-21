@@ -1,0 +1,15 @@
+# Data layer
+duckdb>=1.0
+pandas>=2.0
+numpy>=1.26
+
+# LLM access (OpenAI-compatible client works with Gemini, Groq, OpenRouter, Cerebras...)
+openai>=1.40
+python-dotenv>=1.0
+
+# API server (used from the API/UI phase onward)
+fastapi>=0.110
+uvicorn[standard]>=0.29
+
+# Testing / evals
+pytest>=8.0
