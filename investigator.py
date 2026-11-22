@@ -17,26 +17,37 @@ METHOD
 2. Drill down with run_query to find the ROOT CAUSE of each. Variances at different levels often
    share one cause (a vendor charge shows up in the vendor, category and department rows).
    Report each distinct root cause ONCE, at the most specific level.
-3. For revenue, separate price from volume:
-   price effect  = SUM((price_actual - price_budget) * units_actual)
-   volume effect = SUM((units_actual - units_budget) * price_budget)
-   Check whether a shortfall is concentrated in one region or product, and compare with prior
-   months to see when it started.
+3. For revenue, use revenue_price_volume (do NOT hand-write price/volume SQL). Run it by region and
+   by product to see where price or volume effects concentrate, and for a prior month to see when
+   a change started, and say in your finding when it began. Use run_query for anything else,
+   e.g. expense drill-downs.
 4. For each root cause call record_finding with its dollar impact and the query ids that prove it.
-   Never state a number you did not get from a query result.
+   amount_usd is the impact on PROFIT: negative = unfavorable (revenue shortfall or cost overrun),
+   positive = favorable. Never state a number you did not get from a query result.
 5. Do not report anything below the materiality thresholds. When every material variance is
    explained, reply with a short plain-text summary and NO tool call.
 
 You have a limited number of steps, so be efficient."""
 
 
+def _tool_call_dict(c) -> dict:
+    """Rebuild a tool call for the conversation history.
+
+    Real SDK objects are dumped whole, so provider-specific extras survive the round trip.
+    Gemini 3 models attach a 'thought signature' to tool calls that must be sent back.
+    """
+    if hasattr(c, "model_dump"):
+        d = c.model_dump(exclude_none=True)
+        d["type"] = "function"
+        return d
+    return {"id": c.id, "type": "function",
+            "function": {"name": c.function.name, "arguments": c.function.arguments}}
+
+
 def _assistant_dict(msg) -> dict:
     d = {"role": "assistant", "content": msg.content or ""}
     if msg.tool_calls:
-        d["tool_calls"] = [{"id": c.id, "type": "function",
-                            "function": {"name": c.function.name,
-                                         "arguments": c.function.arguments}}
-                           for c in msg.tool_calls]
+        d["tool_calls"] = [_tool_call_dict(c) for c in msg.tool_calls]
     return d
 
 
@@ -45,6 +56,10 @@ def _print_event(kind, **data):
         print(f"  step {data['step']}: {data['name']}({json.dumps(data['args'])[:110]})")
     elif kind == "tool_error":
         print(f"           ↳ error fed back to model: {data['error'][:100]}")
+    elif kind == "wrapup":
+        print("  step budget used: asking for a final summary (tools disabled)")
+    elif kind == "nudge":
+        print("           ↳ 2 steps left: nudging the agent to wrap up")
     elif kind == "finding":
         print(f"           ↳ FINDING {data['id']}: {data['summary'][:110]}")
 
@@ -58,6 +73,10 @@ def investigate(llm, month: str = "2026-10-01", max_steps: int | None = None,
     final_text, steps, finished = "", 0, False
 
     while steps < max_steps:                                   # <- the step cap
+        if steps > 0 and max_steps - steps == 2:               # nudge before the cap bites
+            messages.append({"role": "user", "content": "You have 2 steps left. Record any remaining "
+                             "findings now, then reply with a short final summary and no tool call."})
+            on_event("nudge")
         steps += 1
         msg = llm.chat(messages, tools=TOOLS)                  # 1. model decides
         messages.append(_assistant_dict(msg))
@@ -79,9 +98,20 @@ def investigate(llm, month: str = "2026-10-01", max_steps: int | None = None,
             messages.append({"role": "tool", "tool_call_id": call.id,   # 4. result goes back
                              "content": json.dumps(out, default=str)})
 
+    wrapped_up = False
+    if not finished:                                           # budget spent: force a summary
+        on_event("wrapup")
+        messages.append({"role": "user", "content": "Your step budget is used up. Do not call any "
+                         "more tools. Write a short final summary of the findings recorded so far, "
+                         "and note anything left unexplained."})
+        msg = llm.chat(messages, tools=TOOLS, tool_choice="none")
+        final_text = msg.content or ""                         # any tool calls here are ignored
+        messages.append({"role": "assistant", "content": final_text})
+        wrapped_up = True
+
     return {"month": month, "findings": ws.findings, "queries": ws.results,
             "summary": final_text, "steps": steps, "hit_step_cap": not finished,
-            "transcript": messages}
+            "wrapped_up": wrapped_up, "transcript": messages}
 
 
 def check_against_truth(findings, path="data/ground_truth.json") -> None:
@@ -107,5 +137,7 @@ if __name__ == "__main__":
           f"{len(result['findings'])} findings:\n")
     for f in result["findings"]:
         print(f"  [{f['id']}] {f['driver_type']:<9} ${f['amount_usd']:>10,.0f}  {f['summary']}")
+    if result["summary"]:
+        print(f"\nSummary:\n  {result['summary']}")
     check_against_truth(result["findings"])
     print("\nSaved runs/latest.json")

@@ -53,3 +53,26 @@ def test_finding_must_cite_real_evidence():
     assert "error" in ws.call("record_finding", {"summary": "x", "driver_type": "volume",
                                                  "amount_usd": -1, "evidence_query_ids": ["q99"]})
     assert ws.findings == []
+
+
+def test_price_volume_reconciles_and_localizes_the_planted_drivers():
+    ws = Workspace()
+    out = ws.revenue_price_volume("2026-10-01", "total")
+    row = dict(zip(out["columns"], out["rows"][0]))
+    assert abs(row["variance"] - row["price_effect"] - row["volume_effect"] - row["unexplained"]) < 0.05
+    assert abs(row["unexplained"]) < 100                       # rounding only
+
+    def by(group):
+        o = ws.revenue_price_volume("2026-10-01", group)
+        return {r[0]: dict(zip(o["columns"], r)) for r in o["rows"]}
+
+    assert by("region")["West"]["volume_effect"] < -25000      # planted: West volume shortfall
+    assert by("product")["Summit Jacket"]["price_effect"] < -20000   # planted: price cut
+    assert abs(by("region")["East"]["price_effect"]) < 10000   # unaffected region stays quiet
+    west = by("region")["West"]
+    assert west["units_actual"] < west["units_budget"] * 0.9   # units are returned too
+
+
+def test_price_volume_rejects_bad_group_by():
+    assert "error" in Workspace().call("revenue_price_volume",
+                                       {"month": "2026-10-01", "group_by": "colour"})

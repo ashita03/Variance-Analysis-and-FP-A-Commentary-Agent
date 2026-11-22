@@ -66,6 +66,37 @@ class Workspace:
         qid = self._store(f"get_material_variances({month})", None, rows)
         return {"query_id": qid, "material_variances": rows}
 
+    # ---- tool 1b: deterministic price/volume decomposition (no need for the model to derive it)
+    PV_GROUPS = {"total": [], "region": ["region"], "product": ["product"],
+                 "region+product": ["region", "product"]}
+
+    def revenue_price_volume(self, month: str, group_by: str = "total") -> dict:
+        if not re.fullmatch(r"\d{4}-\d{2}-01", month or ""):
+            raise QueryError("month must look like 2026-10-01 (first of the month).")
+        if group_by not in self.PV_GROUPS:
+            raise QueryError(f"group_by must be one of {sorted(self.PV_GROUPS)}")
+        dims = self.PV_GROUPS[group_by]
+        dim_sql = ", ".join(dims)
+        select = f"{dim_sql}, " if dims else ""
+        group = f"GROUP BY {dim_sql} ORDER BY {dim_sql}" if dims else ""
+        sql = (f"SELECT {select}SUM(revenue_budget) AS budget_revenue, "
+               "SUM(revenue_actual) AS actual_revenue, "
+               "SUM(units_budget) AS units_budget, SUM(units_actual) AS units_actual, "
+               "SUM(revenue_budget) / SUM(units_budget) AS avg_price_budget, "
+               "SUM(revenue_actual) / SUM(units_actual) AS avg_price_actual, "
+               "SUM(revenue_actual - revenue_budget) AS variance, "
+               "SUM((price_actual - price_budget) * units_actual) AS price_effect, "
+               "SUM((units_actual - units_budget) * price_budget) AS volume_effect "
+               f"FROM revenue WHERE month = CAST(? AS DATE) {group}")
+        cur = self.con.execute(sql, [month])
+        columns = [d[0] for d in cur.description] + ["unexplained"]
+        rows = []
+        for r in cur.fetchall():
+            r = [round(v, 2) if isinstance(v, float) else v for v in r]
+            rows.append(r + [round(r[-3] - r[-2] - r[-1], 2)])   # variance - price - volume
+        qid = self._store(f"revenue_price_volume({month}, {group_by})", columns, rows)
+        return {"query_id": qid, "columns": columns, "rows": rows}
+
     # ---- tool 2: free-form read-only SQL
     def run_query(self, sql: str) -> dict:
         s = validate_sql(sql)
@@ -95,6 +126,7 @@ class Workspace:
     def call(self, name: str, args: dict) -> dict:
         """Dispatch a tool call. Errors go BACK to the model so it can self-correct."""
         fn = {"get_material_variances": self.get_material_variances,
+              "revenue_price_volume": self.revenue_price_volume,
               "run_query": self.run_query,
               "record_finding": self.record_finding}.get(name)
         if fn is None:
@@ -114,6 +146,18 @@ TOOLS = [
             "month": {"type": "string", "description": "First day of month, e.g. 2026-10-01"}},
             "required": ["month"]}}},
     {"type": "function", "function": {
+        "name": "revenue_price_volume",
+        "description": "Split the revenue variance for a month into PRICE effect and VOLUME effect, "
+                       "grouped by total, region, product or region+product. Effects reconcile to "
+                       "the variance (tiny 'unexplained' = rounding). Also returns units and average prices "
+                       "(averages are mix-affected unless grouped by product). Call it for prior "
+                       "months too to see when a change started.",
+        "parameters": {"type": "object", "properties": {
+            "month": {"type": "string", "description": "First day of month, e.g. 2026-10-01"},
+            "group_by": {"type": "string",
+                         "enum": ["total", "region", "product", "region+product"]}},
+            "required": ["month", "group_by"]}}},
+    {"type": "function", "function": {
         "name": "run_query",
         "description": "Run ONE read-only DuckDB SELECT on tables revenue and expenses. "
                        f"Returns at most {MAX_ROWS} rows and a query_id you can cite as evidence.",
@@ -126,7 +170,9 @@ TOOLS = [
             "summary": {"type": "string", "description": "One or two sentences with specific figures."},
             "driver_type": {"type": "string",
                             "enum": ["volume", "price", "mix", "one_time", "timing", "other"]},
-            "amount_usd": {"type": "number", "description": "Signed variance impact in dollars."},
+            "amount_usd": {"type": "number",
+                           "description": "Impact on PROFIT in dollars. Negative = unfavorable "
+                                          "(revenue shortfall OR cost overrun), positive = favorable."},
             "evidence_query_ids": {"type": "array", "items": {"type": "string"}}},
             "required": ["summary", "driver_type", "amount_usd", "evidence_query_ids"]}}},
 ]
