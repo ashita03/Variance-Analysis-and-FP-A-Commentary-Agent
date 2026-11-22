@@ -1,0 +1,32 @@
+{
+  "commentary": {
+    "headline": "October 2026 financial performance was negatively impacted by an unbudgeted marketing event spend alongside ongoing price cuts on Summit Jacket and sales volume shortfalls in the West region.",
+    "paragraphs": [
+      {
+        "finding_ids": [
+          "f1"
+        ],
+        "text": "Marketing Events expense at vendor Brightline Events generated an unfavorable variance of -$84,986.45, with actual spend reaching $91,538.45 against a budget of $6,552.00. This variance was driven by a sudden surge in spend in October 2026 after monthly costs consistently tracked near budgeted levels between $5,927.53 and $6,636.50 over the previous two years."
+      },
+      {
+        "finding_ids": [
+          "f2"
+        ],
+        "text": "Summit Jacket produced an unfavorable price variance of -$26,215.20 across 993 units sold in October 2026. The variance stemmed from an average realized price of $193.60 compared to the budgeted $220.00, continuing a 12% price reduction that began in September 2026."
+      },
+      {
+        "finding_ids": [
+          "f3"
+        ],
+        "text": "The West region generated an unfavorable volume variance of -$31,130.00 as total unit sales reached 786 units against a budget of 992 units. This shortfall of 206 units affected all three product lines and represents a continuation of regional volume declines that began in September 2026."
+      }
+    ]
+  },
+  "verification": {
+    "ok": true,
+    "checked": 14,
+    "unsupported": [],
+    "issues": []
+  },
+  "revisions": 0
+}

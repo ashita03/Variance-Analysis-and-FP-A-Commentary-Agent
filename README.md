@@ -31,7 +31,8 @@ Leave the environment with `deactivate`. Re-activate it each new terminal sessio
 python generate_data.py     # builds data/finance.duckdb + data/ground_truth.json
 python variance.py          # deterministic variance detection (no LLM)
 pytest                      # tests (loop + SQL safety, no API key needed)
-python investigator.py      # run the investigator agent (needs .env)
+python investigator.py      # run the investigator agent (needs .env) -> runs/latest.json
+python narrator.py          # write + verify commentary from runs/latest.json -> runs/commentary.json
 ```
 
 ## Structure
@@ -43,6 +44,8 @@ python investigator.py      # run the investigator agent (needs .env)
 | `llm.py` | Provider-agnostic LLM client (reads `.env`) |
 | `tools.py` | Agent tools + SQL safety layer + citable query log |
 | `investigator.py` | The agent loop; saves `runs/latest.json` |
+| `narrator.py` | Writes commentary; generate -> verify -> revise loop |
+| `verifier.py` | Deterministic number checker (no LLM) |
 | `tests/` | SQL-safety tests and a scripted-model loop test |
 | `.env` | Your API key and model settings (git-ignored) |
 
@@ -50,7 +53,7 @@ python investigator.py      # run the investigator agent (needs .env)
 
 1. [x] Data layer + variance detector
 2. [x] Investigator agent (tool loop, safe SQL tool, findings log)
-3. [ ] Narrative agent + verifier
+3. [x] Narrative agent + verifier
 4. [ ] FastAPI + UI
 5. [ ] Eval script (planted drivers found? injected errors caught?)
 6. [ ] Docker + deploy
