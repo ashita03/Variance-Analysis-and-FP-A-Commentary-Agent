@@ -98,9 +98,7 @@ and 3% (expenses).
 
 **Repeated live runs** (`python evaluate.py --live N`):
 
-| Runs | All checks passed | Notes |
-|---|---|---|
-| `<N>` | `<x/N>` | `<fill in from runs/eval_report.json, including any misses>` |
+To be updated
 
 ## Quickstart
 
