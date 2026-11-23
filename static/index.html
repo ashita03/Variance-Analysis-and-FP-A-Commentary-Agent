@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Variance review</title>
+    <style>
+        :root {
+            --bg: #f5f6f8;
+            --panel: #fff;
+            --ink: #161a22;
+            --mute: #5d6676;
+            --line: #dde1e8;
+            --blue: #1f4fd8;
+            --bad: #b3261e;
+            --good: #0f766e;
+            --badbg: #fbeceb;
+            --goodbg: #e6f4f2;
+            --serif: Georgia, "Iowan Old Style", serif;
+            --sans: system-ui, -apple-system, "Segoe UI", sans-serif
+        }
+
+        @media (prefers-color-scheme:dark) {
+            :root {
+                --bg: #10131a;
+                --panel: #181c25;
+                --ink: #e8ebf1;
+                --mute: #9aa3b2;
+                --line: #2a303c;
+                --blue: #7ea2ff;
+                --bad: #ff8a80;
+                --good: #5fd0c4;
+                --badbg: #2e1a1a;
+                --goodbg: #13292a
+            }
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font: 15px/1.55 var(--sans)
+        }
+
+        main {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 26px 20px 60px
+        }
+
+        h1 {
+            font: 600 22px/1.3 var(--serif);
+            margin: 0
+        }
+
+        h2 {
+            font: 600 15px var(--sans);
+            margin: 0 0 12px
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px
+        }
+
+        .mute {
+            color: var(--mute)
+        }
+
+        .neg {
+            color: var(--bad)
+        }
+
+        .pos {
+            color: var(--good)
+        }
+
+        .status {
+            font-weight: 600;
+            color: var(--good);
+            border: 1px solid var(--good);
+            border-radius: 4px;
+            padding: 2px 9px;
+            font-size: 13px
+        }
+
+        .status.fail {
+            color: var(--bad);
+            border-color: var(--bad)
+        }
+
+        .tiles {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 18px
+        }
+
+        @media(max-width:760px) {
+            .tiles {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .tile {
+            border-radius: 6px;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-left-width: 5px;
+            background: var(--panel)
+        }
+
+        .tile.pos {
+            border-left-color: var(--good);
+            background: var(--goodbg)
+        }
+
+        .tile.neg {
+            border-left-color: var(--bad);
+            background: var(--badbg)
+        }
+
+        .big {
+            font: 600 26px/1.2 var(--serif);
+            font-variant-numeric: tabular-nums
+        }
+
+        .tile .v {
+            font-weight: 600;
+            margin: 2px 0 8px
+        }
+
+        .mini {
+            height: 5px;
+            border-radius: 3px;
+            background: var(--line);
+            margin: 3px 0
+        }
+
+        .mini i {
+            display: block;
+            height: 100%;
+            border-radius: 3px;
+            background: var(--mute)
+        }
+
+        .mini.a i {
+            background: currentColor
+        }
+
+        section,
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 16px 18px;
+            margin-bottom: 18px
+        }
+
+        .legend {
+            font-size: 13px;
+            margin: -6px 0 12px
+        }
+
+        .legend b {
+            font-weight: 600
+        }
+
+        .vrow {
+            display: grid;
+            grid-template-columns: minmax(120px, 1.1fr) 2fr 120px 60px;
+            gap: 10px;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--line);
+            font-variant-numeric: tabular-nums
+        }
+
+        @media(max-width:600px) {
+            .vrow {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .vrow .axis {
+                grid-column: 1/-1;
+                order: 3
+            }
+        }
+
+        .axis {
+            position: relative;
+            height: 14px
+        }
+
+        .axis:before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            border-left: 1px solid var(--mute)
+        }
+
+        .axis i {
+            position: absolute;
+            top: 2px;
+            height: 10px;
+            border-radius: 2px
+        }
+
+        .axis i.pos {
+            background: var(--good)
+        }
+
+        .axis i.neg {
+            background: var(--bad)
+        }
+
+        .vrow .amt {
+            text-align: right;
+            font-weight: 600
+        }
+
+        .vrow .p {
+            text-align: right;
+            color: var(--mute);
+            font-size: 13px
+        }
+
+        .summary p {
+            font: 17px/1.6 var(--serif);
+            max-width: 66ch;
+            margin: 0 0 12px
+        }
+
+        .fl {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 16px
+        }
+
+        .fl li {
+            padding: 6px 0;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            gap: 12px
+        }
+
+        .fl b {
+            min-width: 84px;
+            font-variant-numeric: tabular-nums
+        }
+
+        button.go {
+            font: 600 14px var(--sans);
+            color: var(--bg);
+            background: var(--blue);
+            border: 0;
+            border-radius: 5px;
+            padding: 9px 16px;
+            cursor: pointer
+        }
+
+        button:focus-visible {
+            outline: 2px solid var(--blue);
+            outline-offset: 2px
+        }
+
+        #detail {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+            gap: 28px;
+            margin-top: 18px
+        }
+
+        @media(max-width:860px) {
+            #detail {
+                grid-template-columns: 1fr
+            }
+        }
+
+        #detail[hidden] {
+            display: none
+        }
+
+        .para {
+            font: 16px/1.65 var(--serif);
+            max-width: 62ch;
+            margin: 0 0 16px
+        }
+
+        .chip {
+            font: 600 12px var(--sans);
+            margin-left: 6px;
+            padding: 1px 8px;
+            border: 1px solid var(--blue);
+            color: var(--blue);
+            background: none;
+            border-radius: 10px;
+            cursor: pointer
+        }
+
+        .chip[aria-pressed=true] {
+            background: var(--blue);
+            color: var(--bg)
+        }
+
+        .drawer {
+            align-self: start;
+            position: sticky;
+            top: 12px
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-variant-numeric: tabular-nums;
+            font-size: 13px
+        }
+
+        th,
+        td {
+            text-align: right;
+            padding: 4px 8px;
+            border-bottom: 1px solid var(--line);
+            white-space: nowrap
+        }
+
+        th:first-child,
+        td:first-child {
+            text-align: left
+        }
+
+        .scroll {
+            overflow-x: auto
+        }
+
+        code {
+            display: block;
+            font: 12px/1.5 ui-monospace, Menlo, monospace;
+            background: var(--bg);
+            padding: 8px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            margin: 6px 0;
+            color: var(--mute)
+        }
+
+        .bar {
+            height: 6px;
+            background: var(--line);
+            border-radius: 3px;
+            margin: 4px 0 10px
+        }
+
+        .bar i {
+            display: block;
+            height: 100%;
+            background: var(--blue);
+            border-radius: 3px
+        }
+    </style>
+</head>
+
+<body>
+    <main id="app">
+        <p class="mute">Loading…</p>
+    </main>
+    <script>
+        const $ = (t, a = {}, ...k) => { const e = document.createElement(t); for (const [x, y] of Object.entries(a)) x == "class" ? e.className = y : e.setAttribute(x, y); e.append(...k); return e };
+        const usd = n => (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        const fmt = v => typeof v == "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : v;
+        const table = (c, r) => $("div", { class: "scroll" }, $("table", {}, $("tr", {}, ...c.map(x => $("th", {}, x))), ...r.map(a => $("tr", {}, ...a.map(v => $("td", {}, fmt(v)))))));
+        const dir = v => v >= 0 ? "over" : "under";
+        fetch("/api/run").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))).then(render)
+            .catch(m => document.getElementById("app").replaceChildren($("p", {}, String(m))));
+        function render(d) {
+            const app = document.getElementById("app"), v = d.verification, ok = v.ok && d.finding_checks.every(f => f.ok), T = d.totals;
+            app.replaceChildren($("div", { class: "top" }, $("h1", {}, new Date(d.month + "T00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" }) + ": budget vs actual"),
+                $("span", { class: "status" + (ok ? "" : " fail") }, ok ? `${v.checked} numbers traced to evidence` : "Some numbers lack evidence")));
+            // 1) dashboard tiles
+            const tiles = [["Revenue", T.revenue.actual, T.revenue.budget, 1], ["Expenses", T.expenses.actual, T.expenses.budget, -1],
+            ["Revenue less expenses", T.revenue.actual - T.expenses.actual, T.revenue.budget - T.expenses.budget, 1]];
+            app.append($("div", { class: "tiles" }, ...tiles.map(([n, a, b, g]) => {
+                const dv = a - b, good = g * dv >= 0, mx = Math.max(Math.abs(a), Math.abs(b)) || 1;
+                return $("div", { class: "tile " + (good ? "pos" : "neg") }, $("div", { class: "mute" }, n), $("div", { class: "big" }, usd(a)),
+                    $("div", { class: "v " + (good ? "pos" : "neg") }, `${usd(Math.abs(dv))} ${dir(dv)} budget (${(dv / Math.abs(b) * 100).toFixed(1)}%)`),
+                    $("div", { class: "mini a", style: `width:${Math.abs(a) / mx * 100}%` }, $("i")), $("div", { class: "mini", style: `width:${Math.abs(b) / mx * 100}%` }, $("i")),
+                    $("div", { class: "mute", style: "font-size:12px" }, `Actual vs budget ${usd(b)}`))
+            })));
+            // 2) variances, red = hurts profit, green = helps profit
+            const pref = ["by region", "by product", "by department+vendor"];
+            let vs = d.variances.filter(x => pref.includes(x.slice)); if (!vs.length) vs = d.variances.filter(x => x.slice != "total");
+            const mx = Math.max(...vs.map(x => Math.abs(x.variance)), 1);
+            app.append($("section", {}, $("h2", {}, "Where the variances are"),
+                $("div", { class: "legend mute" }, $("b", { class: "neg" }, "Red"), ": hurts profit. ", $("b", { class: "pos" }, "Green"), ": helps profit. Bars point right when over budget, left when under. Each row is the total gap for that slice, so rows overlap: West and Summit Jacket both include Summit Jacket sold in the West. The summary below splits the gaps into causes that do not overlap."),
+                ...vs.map(x => {
+                    const c = x.favorable ? "pos" : "neg", w = Math.abs(x.variance) / mx * 50, right = x.variance >= 0;
+                    return $("div", { class: "vrow" }, $("span", {}, (x.table == "revenue" ? "Revenue" : "Expenses") + " · " + (Object.values(x.keys).join(", ") || "total")),
+                        $("span", { class: "axis" }, $("i", { class: c, style: `width:${w}%;${right ? "left:50%" : "right:50%"}` })),
+                        $("span", { class: "amt " + c }, usd(Math.abs(x.variance)) + (x.variance >= 0 ? " over" : " under")), $("span", { class: "p" }, x.variance_pct + "%"))
+                })));
+            // 3) summary + drill down
+            const detail = $("div", { id: "detail", hidden: "" }), btn = $("button", { class: "go", "aria-expanded": "false" }, "See detailed analysis");
+            btn.onclick = () => { const h = detail.hidden = !detail.hidden; btn.setAttribute("aria-expanded", !h); btn.textContent = h ? "See detailed analysis" : "Hide detailed analysis" };
+            app.append($("section", { class: "summary" }, $("h2", {}, "Summary: causes, as impact on profit"), $("p", {}, d.commentary.headline),
+                $("ul", { class: "fl" }, ...d.findings.map(f => $("li", {}, $("b", { class: f.amount_usd < 0 ? "neg" : "pos" }, usd(f.amount_usd)), $("span", {}, f.summary)))), btn, detail));
+            // detailed analysis: commentary with evidence drawer + reconciliation
+            const L = $("div", {}), R = $("aside", { class: "drawer" }, $("p", { class: "mute" }, "Select a finding tag (f1, f2…) to see the query and rows behind it.")), chips = [];
+            d.commentary.paragraphs.forEach(p => {
+                const para = $("p", { class: "para" }, p.text);
+                (p.finding_ids || []).forEach(id => {
+                    const b = $("button", { class: "chip", "aria-pressed": "false" }, id);
+                    b.onclick = () => { chips.forEach(c => c.setAttribute("aria-pressed", c === b)); show(id) }; chips.push(b); para.append(b)
+                }); L.append(para)
+            });
+            const rec = $("div", { class: "panel" }, $("h2", {}, "Do the findings explain the totals?"));
+            for (const [k, r] of Object.entries(d.reconciliation)) rec.append($("div", {}, `${k[0].toUpperCase() + k.slice(1)}: findings explain ${usd(r.explained)} of ${usd(r.total)} `,
+                $("span", { class: "mute" }, `(residual ${Math.round(r.residual_pct * 100)}%)`)), $("div", { class: "bar" }, $("i", { style: `width:${Math.min(100, Math.abs(r.explained / r.total) * 100)}%` })));
+            L.append(rec); detail.append(L, R);
+            function show(id) {
+                const f = d.findings.find(x => x.id == id);
+                R.replaceChildren($("div", { class: "panel" }, $("h2", {}, `${f.id}: ${usd(f.amount_usd)} impact on profit`), $("p", {}, f.summary),
+                    ...f.evidence_query_ids.flatMap(q => { const e = d.evidence[q]; return [$("div", { class: "mute" }, "Evidence " + q), $("code", {}, e.sql), table(e.columns, e.rows)] })))
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -24,7 +24,8 @@ METHOD
 4. For each root cause call record_finding with its dollar impact and the query ids that prove it.
    amount_usd is the impact on PROFIT: negative = unfavorable (revenue shortfall or cost overrun),
    positive = favorable. Never state a number you did not get from a query result.
-5. Do not report anything below the materiality thresholds. When every material variance is
+5. Never describe the variances as 'reconciled' or 'fully explained'; a separate check measures that.
+   Do not report anything below the materiality thresholds. When every material variance is
    explained, reply with a short plain-text summary and NO tool call.
 
 You have a limited number of steps, so be efficient."""
