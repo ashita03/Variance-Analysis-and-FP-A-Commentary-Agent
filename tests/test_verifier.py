@@ -1,7 +1,7 @@
 import copy
 
 from conftest import good_commentary
-from verifier import extract_numbers, verify_commentary, verify_findings
+from verifier import build_pools, extract_numbers, verify_commentary, verify_findings
 
 
 def test_extract_numbers_handles_money_percent_suffix_and_skips_noise():
@@ -65,3 +65,18 @@ def test_findings_are_checked_against_their_own_evidence(sample_run):
     broken["findings"][0]["summary"] = "West fell short by $99,999."   # wrong number in text
     res = {r["finding"]: r for r in verify_findings(broken)}
     assert not res["f2"]["amount_ok"] and not res["f1"]["ok"] and res["f3"]["ok"]
+
+
+def test_derived_numbers_come_only_from_matching_budget_actual_pairs():
+    q = {"q1": {"columns": ["units_budget", "units_actual", "avg_price_actual"],
+                "rows": [[1000, 800, 1125.6]]}}
+    money, pct = build_pools(q, ["q1"])
+    assert any(abs(p - 20.0) < 1e-6 for p in pct)       # (800-1000)/1000: a real pair
+    assert any(abs(m - 200.0) < 1e-6 for m in money)    # its difference
+    assert not any(abs(p - 12.56) < 0.01 for p in pct)  # price vs unit count: meaningless
+
+
+def test_abbreviated_column_names_still_pair_up():
+    q = {"q1": {"columns": ["product", "pb", "pa"], "rows": [["Summit Jacket", 220.0, 193.6]]}}
+    _, pct = build_pools(q, ["q1"])
+    assert any(abs(p - 12.0) < 1e-6 for p in pct)

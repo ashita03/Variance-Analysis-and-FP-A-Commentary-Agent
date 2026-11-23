@@ -4,7 +4,8 @@ No LLM involved. The writer can be wrong; the checker cannot be talked into agre
 
 A number is SUPPORTED if, at the precision the writer used, it matches one of:
   - a number in the evidence queries the cited findings point to (direct),
-  - a within-row difference or percent change, or a column total (derived),
+  - the difference or percent change of a budget column and its matching actual column,
+    or a column total (derived),
   - a finding's own amount, or the sum of cited findings' amounts.
 Limits: this checks NUMBERS, not causal claims ("because of X"), and it ignores years and
 bare single-digit counts like "3 drivers".
@@ -13,7 +14,6 @@ import bisect
 import math
 import re
 from decimal import ROUND_HALF_UP, Decimal
-from itertools import permutations
 
 _ISO_DATE = re.compile(r"\b\d{4}-\d{2}(?:-\d{2})?\b")
 _NUM = re.compile(r"(?<![\w.])(?P<cur>\$)?(?P<int>\d{1,3}(?:,\d{3})+|\d+)(?P<frac>\.\d+)?"
@@ -40,31 +40,70 @@ def _isnum(v) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
+_ACT, _BUD = {"actual", "act"}, {"budget", "bud", "plan"}
+
+
+def _stem(name):
+    """Which side of a budget/actual pair is this column? ('units','a') for units_actual or ua."""
+    n = str(name).lower()
+    toks = [t for t in re.split(r"[^a-z0-9]+", n) if t]
+    for words, kind in ((_ACT, "a"), (_BUD, "b")):
+        if any(t in words for t in toks):
+            return tuple(t for t in toks if t not in words), kind
+    m = re.fullmatch(r"([a-z]+)([ab])", n)            # abbreviations: pa/pb, ua/ub, ra/rb
+    return ((m.group(1),), m.group(2)) if m else None
+
+
+def _pairs(names):
+    """Index pairs (actual_col, budget_col) that share a stem. The ONLY derivable pairs."""
+    act, bud = {}, {}
+    for i, n in enumerate(names):
+        if st := _stem(n):
+            (act if st[1] == "a" else bud)[st[0]] = i
+    return [(act[k], bud[k]) for k in act if k in bud]
+
+
+def _pct_named(name) -> bool:
+    return bool(re.search(r"pct|percent|ratio|margin|rate|%", str(name).lower()))
+
+
 def build_pools(queries: dict, query_ids, extra_amounts=()):
-    """Sorted candidate pools: (money-like numbers, percentages). All stored as absolute values."""
+    """Sorted candidate pools: (money-like numbers, percentages), as absolute values.
+
+    Deliberately NARROW: arbitrary column pairs would let nonsense (price vs unit count)
+    'support' a wrong number by coincidence. Allowed:
+      money: any cell; actual-budget difference of a matching pair; column totals; finding sums
+      pct:   cells in percent-named columns; percent change of a matching pair
+    """
     money, pct = set(), set()
     r = lambda x: round(abs(x), 6)
     for qid in query_ids:
-        rows = (queries.get(qid) or {}).get("rows")
+        q = queries.get(qid) or {}
+        rows, cols = q.get("rows"), q.get("columns")
         if not isinstance(rows, list):
             continue
-        col_sums: dict = {}
+        totals: dict = {}
         for row in rows:
             if isinstance(row, dict):
-                items = [(k, v) for k, v in row.items() if _isnum(v)]
+                names, vals = list(row.keys()), list(row.values())
             elif isinstance(row, (list, tuple)):
-                items = [(i, v) for i, v in enumerate(row) if _isnum(v)]
+                vals = list(row)
+                names = list(cols) if cols and len(cols) == len(vals) else [None] * len(vals)
             else:
                 continue
-            for k, v in items:
-                money.add(r(v)); pct.add(r(v))
-                col_sums[k] = col_sums.get(k, 0) + v
-            for a, b in permutations([v for _, v in items], 2):
-                money.add(r(a - b))                        # within-row difference
-                if b:
-                    pct.add(r((a - b) / b * 100))          # within-row percent change
-        for s in col_sums.values():                        # column totals
-            money.add(r(s)); pct.add(r(s))
+            for i, v in enumerate(vals):
+                if _isnum(v):
+                    money.add(r(v))
+                    totals[i] = totals.get(i, 0) + v
+                    if _pct_named(names[i]):
+                        pct.add(r(v))
+            for ia, ib in _pairs(names):
+                a, b = vals[ia], vals[ib]
+                if _isnum(a) and _isnum(b):
+                    money.add(r(a - b))
+                    if b:
+                        pct.add(r((a - b) / b * 100))
+        money.update(r(t) for t in totals.values())
     for a in extra_amounts:
         money.add(r(a))
     return sorted(money), sorted(pct)

@@ -10,8 +10,8 @@ budget-vs-actual review. You are given findings and the query results that prove
 Write for a CFO: plain, specific, concise.
 
 RULES
-- Use ONLY numbers that appear in the data provided (or a simple difference or percentage of
-  them). Never estimate or invent a figure.
+- Use ONLY numbers that appear in the data provided, or the difference or percent change between
+  a budget figure and its matching actual figure. Never estimate or invent a figure.
 - Cover every finding with one paragraph of 2-3 sentences: what happened, how big in dollars,
   the driver, and when it started if the data shows it.
 - amount_usd is the impact on PROFIT: negative = unfavorable.
